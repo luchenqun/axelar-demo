@@ -5,8 +5,10 @@ yarn.lock
 
 # Blockchain data
 chaindata/
-# 但需要跟踪 reth_config 配置文件
+# 但需要跟踪配置文件
 !chaindata/reth_config
+!chaindata/chain-a-genesis.json
+!chaindata/chain-b-genesis.json
 
 # Environment variables
 .env
