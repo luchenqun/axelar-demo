@@ -17,10 +17,10 @@ services:
         source: ./chaindata/chain-a
         target: /rethdata
       - type: bind
-        source: ./chaindata/reth_config
-        target: /chaindata/reth_config
-    # 使用 reth_config 启动，启用 HTTP 和 WS，设置出块时间
-    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /chaindata/reth_config --dev.block-time 1000ms
+        source: ./chaindata/chain-a-genesis.json
+        target: /genesis.json
+    # 使用 chain-a-genesis.json 启动，启用 HTTP 和 WS，设置出块时间
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /genesis.json --dev.block-time 1000ms
 
   # Chain B: Reth Node
   chain-b:
@@ -38,8 +38,9 @@ services:
         source: ./chaindata/chain-b
         target: /rethdata
       - type: bind
-        source: ./chaindata/reth_config
-        target: /chaindata/reth_config
-    # 使用 reth_config 启动，启用 HTTP 和 WS，设置出块时间
-    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /chaindata/reth_config --dev.block-time 1000ms
+        source: ./chaindata/chain-b-genesis.json
+        target: /genesis.json
+    # 使用 chain-b-genesis.json 启动，启用 HTTP 和 WS，设置出块时间
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /genesis.json --dev.block-time 1000ms
+
 
