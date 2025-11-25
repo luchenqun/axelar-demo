@@ -1,5 +1,5 @@
-const { setupNetwork, relay, getNetwork } = require('@axelar-network/axelar-local-dev');
-const { ethers } = require('ethers');
+import { setupNetwork, relay } from '@axelar-network/axelar-local-dev';
+import { ethers } from 'ethers';
 
 // ================= 配置区域 =================
 // 假设你本地运行了两个 EVM 节点
@@ -11,10 +11,10 @@ const RPC_URL_B = 'http://localhost:7545'; // Chain B 映射到 7545
 // 这里的私钥需要是在两个链上都有余额的账户
 // 为了演示方便，这里使用 Ganache 默认的第一个账户私钥
 // 如果你使用自己的节点，请替换为你自己的私钥
-const PRIVATE_KEY = '0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f5917d1';
+const PRIVATE_KEY = '0xf78a036930ce63791ea6ea20072986d8c3f16a6811f6a2583b0787c45086f769';
 // ===========================================
 
-async function main() {
+async function main(): Promise<void> {
   console.log('🚀 Axelar 本地跨链演示启动...');
 
   // 检查节点连接
@@ -33,11 +33,15 @@ async function main() {
 
   console.log('------------------------------------------------------');
 
+  // 设置钱包
+  const walletA = new ethers.Wallet(PRIVATE_KEY, providerA);
+  const walletB = new ethers.Wallet(PRIVATE_KEY, providerB);
+
   // 1. 初始化链 A 环境 (部署 Gateway 等 Axelar 合约)
   console.log(`\n🔗 正在初始化链 A (${RPC_URL_A})...`);
   const chainA = await setupNetwork(RPC_URL_A, {
     name: 'ChainA',
-    ownerKey: PRIVATE_KEY,
+    ownerKey: walletA,
   });
   console.log(`   ✅ Gateway 地址: ${chainA.gateway.address}`);
 
@@ -45,13 +49,9 @@ async function main() {
   console.log(`\n🔗 正在初始化链 B (${RPC_URL_B})...`);
   const chainB = await setupNetwork(RPC_URL_B, {
     name: 'ChainB',
-    ownerKey: PRIVATE_KEY,
+    ownerKey: walletB,
   });
   console.log(`   ✅ Gateway 地址: ${chainB.gateway.address}`);
-
-  // 设置钱包
-  const walletA = new ethers.Wallet(PRIVATE_KEY, providerA);
-  const walletB = new ethers.Wallet(PRIVATE_KEY, providerB);
 
   console.log('------------------------------------------------------');
 

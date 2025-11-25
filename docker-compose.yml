@@ -16,8 +16,11 @@ services:
       - type: bind
         source: ./chaindata/chain-a
         target: /rethdata
-    # 使用 --dev 模式启动，启用 HTTP 和 WS
-    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --dev.block-time 1000ms
+      - type: bind
+        source: ./chaindata/reth_config
+        target: /chaindata/reth_config
+    # 使用 reth_config 启动，启用 HTTP 和 WS，设置出块时间
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /chaindata/reth_config --dev.block-time 1000ms
 
   # Chain B: Reth Node
   chain-b:
@@ -28,10 +31,15 @@ services:
         soft: 1048576
         hard: 1048576
     ports:
-      - '7545:8545' # HTTP (映射到宿主机 8547)
-      - '7546:8546' # WS   (映射到宿主机 8548)
+      - '7545:8545' # HTTP (映射到宿主机 7545)
+      - '7546:8546' # WS   (映射到宿主机 7546)
     volumes:
       - type: bind
         source: ./chaindata/chain-b
         target: /rethdata
-    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --dev.block-time 1000ms
+      - type: bind
+        source: ./chaindata/reth_config
+        target: /chaindata/reth_config
+    # 使用 reth_config 启动，启用 HTTP 和 WS，设置出块时间
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --chain /chaindata/reth_config --dev.block-time 1000ms
+
