@@ -1,0 +1,14 @@
+{
+  "name": "axelar-demo",
+  "version": "1.0.0",
+  "description": "Axelar local cross-chain demo",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@axelar-network/axelar-local-dev": "^2.0.0",
+    "ethers": "^5.7.2"
+  }
+}
+

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # Chain A: Reth Node
+  chain-a:
+    restart: always
+    image: 'ghcr.io/paradigmxyz/reth:v1.8.2'
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    ports:
+      - '8545:8545' # HTTP
+      - '8546:8546' # WS
+    volumes:
+      - type: bind
+        source: ./chaindata/chain-a
+        target: /rethdata
+    # 使用 --dev 模式启动，启用 HTTP 和 WS
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --dev.block-time 1000ms
+
+  # Chain B: Reth Node
+  chain-b:
+    restart: always
+    image: 'ghcr.io/paradigmxyz/reth:v1.8.2'
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    ports:
+      - '7545:8545' # HTTP (映射到宿主机 8547)
+      - '7546:8546' # WS   (映射到宿主机 8548)
+    volumes:
+      - type: bind
+        source: ./chaindata/chain-b
+        target: /rethdata
+    command: node --dev --datadir /rethdata --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*" --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.origins "*" --dev.block-time 1000ms
