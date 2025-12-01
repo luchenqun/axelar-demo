@@ -131,10 +131,12 @@ if [ ! -f "$AXELAR_HOME/config/genesis.json" ]; then
             echo "   初始化完成。"
 
             # 配置 Genesis: 添加治理权限、激活 Ethereum、添加 Polygon 链
-            echo "   配置 Genesis (激活链和添加 Polygon)..."
+            echo "   配置 Genesis (激活链、添加 Polygon)..."
             bash scripts/configure-genesis.sh > /dev/null 2>&1
             bash scripts/activate-ethereum-in-genesis.sh > /dev/null 2>&1
             bash scripts/add-polygon-to-genesis.sh > /dev/null 2>&1
+            # 暂时跳过 maintainer 配置，节点启动后通过命令注册
+            # bash scripts/add-maintainers-to-genesis.sh > /dev/null 2>&1
             echo "   ✅ Genesis 配置完成"
         fi
 
@@ -163,7 +165,7 @@ nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 
 
         # Relayer 已经在 Genesis 中资金充足，无需转账
         # 等待节点启动
-        sleep 5
+        sleep 2
 
 
         # ---------------------------
@@ -188,7 +190,7 @@ nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 
         # ---------------------------
         # 等待 Hardhat 启动
         echo "   等待 Hardhat 节点就绪 (5s)..."
-        sleep 5
+        sleep 2
 
         echo "   启动 Vald (Validator Daemon)..."
         # 获取验证者地址
@@ -214,7 +216,7 @@ nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 
 # 4. 检查状态
 # ---------------------------
 echo "⏳ 等待服务启动..."
-sleep 5
+sleep 2
 
 echo "📊 服务状态检查:"
 
