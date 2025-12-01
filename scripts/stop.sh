@@ -13,14 +13,20 @@ fi
 echo "🛑 停止服务..."
 echo "--------------------------------"
 
-# 停止 Reth 节点
-echo "1️⃣  停止 Reth 节点 (Docker)..."
-$DOCKER_COMPOSE down
+# 停止 Hardhat 节点
+echo "1️⃣  停止 Hardhat 节点..."
+# 查找并停止 npx hardhat node 进程
+pkill -f "hardhat node"
 
-# 停止本地进程
-echo "2️⃣  停止本地进程 (Axelard & Tofnd)..."
-pkill -f "bin/axelard"
-pkill -f "bin/tofnd"
+# 停止 Docker (如果有残留)
+echo "2️⃣  清理 Docker 容器 (如果有)..."
+$DOCKER_COMPOSE down 2>/dev/null
+
+        # 停止本地进程
+        echo "3️⃣  停止 Axelar & Tofnd..."
+        pkill -f "bin/axelard"
+        pkill -f "bin/tofnd"
+        pkill -f "vald-start"
 
 # 等待进程退出
 sleep 2
