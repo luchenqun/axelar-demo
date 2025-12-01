@@ -10,11 +10,20 @@ else
     exit 1
 fi
 
-echo "🛑 停止两个 Reth 节点..."
+echo "🛑 停止服务..."
 echo "--------------------------------"
 
-# 停止 docker-compose
+# 停止 Reth 节点
+echo "1️⃣  停止 Reth 节点 (Docker)..."
 $DOCKER_COMPOSE down
 
+# 停止本地进程
+echo "2️⃣  停止本地进程 (Axelard & Tofnd)..."
+pkill -f "bin/axelard"
+pkill -f "bin/tofnd"
+
+# 等待进程退出
+sleep 2
+
 echo ""
-echo "✅ 节点已停止！"
+echo "✅ 所有服务已停止！"

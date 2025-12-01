@@ -1,39 +1,32 @@
 #!/bin/bash
 
-# 检测 docker compose 命令
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif docker compose version &> /dev/null; then
-    DOCKER_COMPOSE="docker compose"
-else
-    echo "❌ 错误: 未找到 docker-compose 或 docker compose 命令"
+# 确保在项目根目录执行
+if [ ! -d "scripts" ]; then
+    echo "❌ 错误: 请在项目根目录下运行此脚本"
     exit 1
 fi
 
-echo "🔄 重置两个 Reth 节点..."
+echo "🔄 重置 Axelar 开发环境 (Reth + Axelar + Tofnd)..."
 echo "--------------------------------"
 
-# 停止容器
-echo "1️⃣  停止容器..."
-$DOCKER_COMPOSE down
+# 1. 停止所有服务
+./scripts/stop.sh
 
-# 删除 chaindata
-echo "2️⃣  删除链数据..."
+# 2. 清理数据
+echo "🧹 清理数据文件..."
+
+# 清理 Reth 数据
+echo "   清理 Reth 链数据..."
 rm -rf chaindata/chain-a/* chaindata/chain-b/*
 
-# 重新启动
-echo "3️⃣  重新启动节点..."
-$DOCKER_COMPOSE up -d
+# 清理 Axelar 和 Tofnd 数据
+echo "   清理 Axelar 和 Tofnd 数据 (chaindata/)..."
+rm -rf chaindata/axelar chaindata/tofnd chaindata/logs
+# 如果之前的 data 目录存在，也一并清理
+rm -rf data/
 
-# 等待节点启动
-echo "⏳ 等待节点启动..."
-sleep 1
-
-# 检查节点状态
-echo "📊 节点状态:"
-$DOCKER_COMPOSE ps
-
+echo "✅ 数据清理完成"
 echo ""
-echo "✅ 节点已重置并启动！"
-echo "   Chain A: http://localhost:8545"
-echo "   Chain B: http://localhost:7545"
+
+# 3. 重新启动
+./scripts/start.sh
