@@ -86,7 +86,7 @@ async function main(): Promise<void> {
     chainB.name, // 目标链名称
     walletB.address, // 接收地址
     'aUSDC', // 代币 Symbol
-    amount // 数量
+    amount, // 数量
   );
   const receipt = await sendTx.wait();
   console.log(`       ✅ 交易已上链 (Hash: ${receipt.transactionHash})`);

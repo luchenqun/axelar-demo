@@ -2,25 +2,25 @@
 
 # 确保在项目根目录执行
 if [ ! -d "scripts" ]; then
-    echo "❌ 错误: 请在项目根目录下运行此脚本 (例如 ./scripts/start.sh)"
-    exit 1
+  echo "❌ 错误: 请在项目根目录下运行此脚本 (例如 ./scripts/start.sh)"
+  exit 1
 fi
 
 # 确保 bin 目录有 axelard 和 tofnd 文件
 if [ ! -f "bin/axelard" ] || [ ! -f "bin/tofnd" ]; then
-    echo "❌ 错误: bin/axelard 或 bin/tofnd 文件缺失。"
-    echo "   请确保这两个可执行文件位于 bin/ 目录下。"
-    exit 1
+  echo "❌ 错误: bin/axelard 或 bin/tofnd 文件缺失。"
+  echo "   请确保这两个可执行文件位于 bin/ 目录下。"
+  exit 1
 fi
 
 # 检测 docker compose 命令
 if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
+  DOCKER_COMPOSE="docker-compose"
 elif docker compose version &> /dev/null; then
-    DOCKER_COMPOSE="docker compose"
+  DOCKER_COMPOSE="docker compose"
 else
-    echo "❌ 错误: 未找到 docker-compose 或 docker compose 命令"
-    exit 1
+  echo "❌ 错误: 未找到 docker-compose 或 docker compose 命令"
+  exit 1
 fi
 
 echo "🚀 启动 Axelar 本地开发环境"
@@ -37,16 +37,19 @@ export TOFND_PASSWORD="123456"
 TOFND_HOME="chaindata/tofnd"
 
 # 检查是否需要初始化密钥
-if [ -z "$(ls -A $TOFND_HOME 2>/dev/null)" ]; then
-    echo "   初始化 Tofnd 密钥..."
-    # 使用管道输入密码，防止交互式等待
-    (echo "$TOFND_PASSWORD"; echo "$TOFND_PASSWORD") | ./bin/tofnd -m create -d $TOFND_HOME > chaindata/logs/tofnd.init.log 2>&1
-    
-    # 删除导出文件，避免 tofnd 再次启动报错 "File chaindata/tofnd/export already exists"
-    rm -f $TOFND_HOME/export
+if [ -z "$(ls -A $TOFND_HOME 2> /dev/null)" ]; then
+  echo "   初始化 Tofnd 密钥..."
+  # 使用管道输入密码，防止交互式等待
+  (
+    echo "$TOFND_PASSWORD"
+    echo "$TOFND_PASSWORD"
+  ) | ./bin/tofnd -m create -d $TOFND_HOME > chaindata/logs/tofnd.init.log 2>&1
 
-    # 等待初始化完成
-    sleep 1
+  # 删除导出文件，避免 tofnd 再次启动报错 "File chaindata/tofnd/export already exists"
+  rm -f $TOFND_HOME/export
+
+  # 等待初始化完成
+  sleep 1
 fi
 
 echo "   正在后台启动 Tofnd..."
@@ -64,153 +67,143 @@ CHAIN_ID="axelar-demo-1"
 
 # 检查是否已经初始化
 if [ ! -f "$AXELAR_HOME/config/genesis.json" ]; then
-    echo "   首次运行，初始化 Axelar 链配置..."
-    
-    # 初始化链
-    ./bin/axelard init demo-node --chain-id $CHAIN_ID --home $AXELAR_HOME --default-denom uaxl > /dev/null 2>&1
-    
-    # 添加验证者密钥
-    echo "   生成验证者密钥..."
-    ./bin/axelard keys add validator --home $AXELAR_HOME --keyring-backend test --output json > $AXELAR_HOME/validator_key.json 2>&1
-    
-    # 添加 Relayer 密钥 (用于发交易，避免与 Vald Nonce 冲突)
-    echo "   生成 Relayer 密钥..."
-    ./bin/axelard keys add relayer --home $AXELAR_HOME --keyring-backend test --output json > $AXELAR_HOME/relayer_key.json 2>&1
+  echo "   首次运行，初始化 Axelar 链配置..."
 
-    # 配置初始账户资金 (Validator)
-    ./bin/axelard add-genesis-account validator 1000000000000000uaxl --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
+  # 初始化链
+  ./bin/axelard init demo-node --chain-id $CHAIN_ID --home $AXELAR_HOME --default-denom uaxl > /dev/null 2>&1
 
-    # 配置初始账户资金 (Relayer) - 1,000,000,000 uaxl
-    ./bin/axelard add-genesis-account relayer 1000000000000000uaxl --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
+  # 添加验证者密钥
+  echo "   生成验证者密钥..."
+  ./bin/axelard keys add validator --home $AXELAR_HOME --keyring-backend test --output json > $AXELAR_HOME/validator_key.json 2>&1
 
-    # 生成创世交易 (Gentx)
-    ./bin/axelard genesis gentx validator 1000000000uaxl --chain-id $CHAIN_ID --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
-    
-    # 收集 Gentx
-    ./bin/axelard genesis collect-gentxs --home $AXELAR_HOME > /dev/null 2>&1
-    
-    # 验证 genesis.json 是否有效
-    if ! grep -q "genutil" $AXELAR_HOME/config/genesis.json; then
-         echo "   ❌ 错误: collect-gentxs 可能失败，genesis.json 不完整"
-         exit 1
-    fi
+  # 添加 Relayer 密钥 (用于发交易，避免与 Vald Nonce 冲突)
+  echo "   生成 Relayer 密钥..."
+  ./bin/axelard keys add relayer --home $AXELAR_HOME --keyring-backend test --output json > $AXELAR_HOME/relayer_key.json 2>&1
 
-    # ---------------------------
-    # 优化配置文件 (参考 setup-local-node.sh)
-    # ---------------------------
-    echo "   优化节点配置 (RPC/API/CORS)..."
-    
-    CONFIG_FILE="$AXELAR_HOME/config/config.toml"
-    APP_CONFIG_FILE="$AXELAR_HOME/config/app.toml"
+  # 配置初始账户资金 (Validator)
+  ./bin/axelard add-genesis-account validator 1000000000000000uaxl --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
 
-    if [ -f "$CONFIG_FILE" ]; then
-        # 1. 修改 RPC 监听地址为 0.0.0.0 以便外部访问
-        sed -i.bak 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' "$CONFIG_FILE"
+  # 配置初始账户资金 (Relayer) - 1,000,000,000 uaxl
+  ./bin/axelard add-genesis-account relayer 1000000000000000uaxl --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
 
-        # 2. 启用 RPC CORS
-        sed -i.bak 's/cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' "$CONFIG_FILE"
+  # 生成创世交易 (Gentx)
+  ./bin/axelard genesis gentx validator 1000000000uaxl --chain-id $CHAIN_ID --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
 
-        # 3. 减少超时时间以加快本地开发出块速度
-        sed -i.bak 's/timeout_commit = "5s"/timeout_commit = "1s"/' "$CONFIG_FILE"
-    fi
+  # 收集 Gentx
+  ./bin/axelard genesis collect-gentxs --home $AXELAR_HOME > /dev/null 2>&1
 
-            if [ -f "$APP_CONFIG_FILE" ]; then
-                # 1. 启用 API 服务器
-                sed -i.bak 's/enable = false/enable = true/' "$APP_CONFIG_FILE"
+  # 验证 genesis.json 是否有效
+  if ! grep -q "genutil" $AXELAR_HOME/config/genesis.json; then
+    echo "   ❌ 错误: collect-gentxs 可能失败，genesis.json 不完整"
+    exit 1
+  fi
 
-                # 2. 启用 Swagger 文档
-                sed -i.bak 's/swagger = false/swagger = true/' "$APP_CONFIG_FILE"
+  # ---------------------------
+  # 优化配置文件 (参考 setup-local-node.sh)
+  # ---------------------------
+  echo "   优化节点配置 (RPC/API/CORS)..."
 
-                # 3. 修改 API 监听地址 (0.0.0.0:1317)
-                sed -i.bak 's/address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' "$APP_CONFIG_FILE"
+  CONFIG_FILE="$AXELAR_HOME/config/config.toml"
+  APP_CONFIG_FILE="$AXELAR_HOME/config/app.toml"
 
-                # 4. 启用 API CORS
-                sed -i.bak 's/enabled-unsafe-cors = false/enabled-unsafe-cors = true/' "$APP_CONFIG_FILE"
-            fi
+  if [ -f "$CONFIG_FILE" ]; then
+    # 1. 修改 RPC 监听地址为 0.0.0.0 以便外部访问
+    sed -i.bak 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' "$CONFIG_FILE"
 
-            echo "   初始化完成。"
+    # 2. 启用 RPC CORS
+    sed -i.bak 's/cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' "$CONFIG_FILE"
 
-            # 配置 Genesis: 添加治理权限、激活 Ethereum、添加 Polygon 链
-            echo "   配置 Genesis (激活链、添加 Polygon)..."
-            bash scripts/configure-genesis.sh > /dev/null 2>&1
-            bash scripts/activate-ethereum-in-genesis.sh > /dev/null 2>&1
-            bash scripts/add-polygon-to-genesis.sh > /dev/null 2>&1
-            # 暂时跳过 maintainer 配置，节点启动后通过命令注册
-            # bash scripts/add-maintainers-to-genesis.sh > /dev/null 2>&1
-            echo "   ✅ Genesis 配置完成"
-        fi
+    # 3. 减少超时时间以加快本地开发出块速度
+    sed -i.bak 's/timeout_commit = "5s"/timeout_commit = "1s"/' "$CONFIG_FILE"
+  fi
 
-        # 确保 Relayer 账户存在 (避免与 Vald Nonce 冲突)
-        # 注意：现在已经在创世时创建了
-        if ! ./bin/axelard keys show relayer --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1; then
-            echo "   ⚠️ Relayer 账户未找到，尝试重新导入..."
-            # 如果因为某种原因丢失，尝试重新生成(但这样就没钱了，除非重新reset)
-            ./bin/axelard keys add relayer --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
-        fi
+  if [ -f "$APP_CONFIG_FILE" ]; then
+    # 1. 启用 API 服务器
+    sed -i.bak 's/enable = false/enable = true/' "$APP_CONFIG_FILE"
 
-        echo "   正在后台启动 Axelard..."
+    # 2. 启用 Swagger 文档
+    sed -i.bak 's/swagger = false/swagger = true/' "$APP_CONFIG_FILE"
+
+    # 3. 修改 API 监听地址 (0.0.0.0:1317)
+    sed -i.bak 's/address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' "$APP_CONFIG_FILE"
+
+    # 4. 启用 API CORS
+    sed -i.bak 's/enabled-unsafe-cors = false/enabled-unsafe-cors = true/' "$APP_CONFIG_FILE"
+  fi
+
+  echo "   初始化完成。"
+  echo "   ✅ Genesis 配置完成"
+fi
+
+# 确保 Relayer 账户存在 (避免与 Vald Nonce 冲突)
+# 注意：现在已经在创世时创建了
+if ! ./bin/axelard keys show relayer --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1; then
+  echo "   ⚠️ Relayer 账户未找到，尝试重新导入..."
+  # 如果因为某种原因丢失，尝试重新生成(但这样就没钱了，除非重新reset)
+  ./bin/axelard keys add relayer --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
+fi
+
+echo "   正在后台启动 Axelard..."
 # 启动节点
 # 设置 bin 目录为库加载路径 (针对 Mac libwasmvm.dylib 或 Linux libwasmvm.so)
 # 即使手动放置了库文件，也需要让 loader 找到它
 BIN_ABS_PATH="$(cd bin && pwd)"
 if [ "$(uname)" == "Darwin" ]; then
-    export DYLD_LIBRARY_PATH="$BIN_ABS_PATH:$DYLD_LIBRARY_PATH"
+  export DYLD_LIBRARY_PATH="$BIN_ABS_PATH:$DYLD_LIBRARY_PATH"
 else
-    export LD_LIBRARY_PATH="$BIN_ABS_PATH:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="$BIN_ABS_PATH:$LD_LIBRARY_PATH"
 fi
 
 nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 &
-        PID_AXELAR=$!
-        echo "   Axelard PID: $PID_AXELAR"
+PID_AXELAR=$!
+echo "   Axelard PID: $PID_AXELAR"
 
-        # Relayer 已经在 Genesis 中资金充足，无需转账
-        # 等待节点启动
-        sleep 2
+# Relayer 已经在 Genesis 中资金充足，无需转账
+# 等待节点启动
+sleep 2
 
+# ---------------------------
+# 3. 启动 EVM 节点 (Hardhat)
+# ---------------------------
+echo "3️⃣  启动 Hardhat 节点..."
 
-        # ---------------------------
-        # 3. 启动 EVM 节点 (Hardhat)
-        # ---------------------------
-        echo "3️⃣  启动 Hardhat 节点..."
+# Chain A
+echo "   正在启动 Chain A (Port 8545)..."
+nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/chain-a.log 2>&1 &
+PID_CHAIN_A=$!
+echo "   Chain A PID: $PID_CHAIN_A"
 
-        # Chain A
-        echo "   正在启动 Chain A (Port 8545)..."
-        nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/chain-a.log 2>&1 &
-        PID_CHAIN_A=$!
-        echo "   Chain A PID: $PID_CHAIN_A"
+# Chain B
+echo "   正在启动 Chain B (Port 7545)..."
+nohup npx hardhat node --config configs/chain-b.config.cjs --port 7545 > chaindata/logs/chain-b.log 2>&1 &
+PID_CHAIN_B=$!
+echo "   Chain B PID: $PID_CHAIN_B"
 
-        # Chain B
-        echo "   正在启动 Chain B (Port 7545)..."
-        nohup npx hardhat node --config configs/chain-b.config.cjs --port 7545 > chaindata/logs/chain-b.log 2>&1 &
-        PID_CHAIN_B=$!
-        echo "   Chain B PID: $PID_CHAIN_B"
+# ---------------------------
+# 2.5 启动 Vald (Validator Daemon)
+# ---------------------------
+# 等待 Hardhat 启动
+echo "   等待 Hardhat 节点就绪 (5s)..."
+sleep 2
 
-        # ---------------------------
-        # 2.5 启动 Vald (Validator Daemon)
-        # ---------------------------
-        # 等待 Hardhat 启动
-        echo "   等待 Hardhat 节点就绪 (5s)..."
-        sleep 2
+echo "   启动 Vald (Validator Daemon)..."
+# 获取验证者地址
+VALIDATOR_ADDR=$(./bin/axelard keys show validator --home $AXELAR_HOME --bech val -a --keyring-backend test)
 
-        echo "   启动 Vald (Validator Daemon)..."
-        # 获取验证者地址
-        VALIDATOR_ADDR=$(./bin/axelard keys show validator --home $AXELAR_HOME --bech val -a --keyring-backend test)
-        
-        nohup ./bin/axelard vald-start --home $AXELAR_HOME \
-            --validator-addr $VALIDATOR_ADDR \
-            --log_level debug \
-            --chain-id $CHAIN_ID \
-            --node tcp://127.0.0.1:26657 \
-            --from validator \
-            --keyring-backend test \
-            > chaindata/logs/vald.log 2>&1 &
-        PID_VALD=$!
-        echo "   Vald PID: $PID_VALD"
+nohup ./bin/axelard vald-start --home $AXELAR_HOME \
+  --validator-addr $VALIDATOR_ADDR \
+  --log_level debug \
+  --chain-id $CHAIN_ID \
+  --node tcp://127.0.0.1:26657 \
+  --from validator \
+  --keyring-backend test \
+  > chaindata/logs/vald.log 2>&1 &
+PID_VALD=$!
+echo "   Vald PID: $PID_VALD"
 
-        # ---------------------------
-        # 4. 检查状态
-        # ---------------------------
-
+# ---------------------------
+# 4. 检查状态
+# ---------------------------
 
 # ---------------------------
 # 4. 检查状态
@@ -222,30 +215,30 @@ echo "📊 服务状态检查:"
 
 # 检查 Tofnd
 if ps -p $PID_TOFND > /dev/null; then
-    echo "   ✅ Tofnd 运行中 (PID: $PID_TOFND)"
+  echo "   ✅ Tofnd 运行中 (PID: $PID_TOFND)"
 else
-    echo "   ❌ Tofnd 启动失败，请查看日志: chaindata/logs/tofnd.log"
+  echo "   ❌ Tofnd 启动失败，请查看日志: chaindata/logs/tofnd.log"
 fi
 
 # 检查 Axelard
 if ps -p $PID_AXELAR > /dev/null; then
-    echo "   ✅ Axelard 运行中 (PID: $PID_AXELAR)"
-    echo "      RPC: http://localhost:26657"
+  echo "   ✅ Axelard 运行中 (PID: $PID_AXELAR)"
+  echo "      RPC: http://localhost:26657"
 else
-    echo "   ❌ Axelard 启动失败，请查看日志: chaindata/logs/axelard.log"
+  echo "   ❌ Axelard 启动失败，请查看日志: chaindata/logs/axelard.log"
 fi
 
 # 检查 Hardhat 节点
 if ps -p $PID_CHAIN_A > /dev/null; then
-    echo "   ✅ Chain A (Hardhat) 运行中 (PID: $PID_CHAIN_A)"
+  echo "   ✅ Chain A (Hardhat) 运行中 (PID: $PID_CHAIN_A)"
 else
-    echo "   ❌ Chain A 启动失败，请查看日志: chaindata/logs/chain-a.log"
+  echo "   ❌ Chain A 启动失败，请查看日志: chaindata/logs/chain-a.log"
 fi
 
 if ps -p $PID_CHAIN_B > /dev/null; then
-    echo "   ✅ Chain B (Hardhat) 运行中 (PID: $PID_CHAIN_B)"
+  echo "   ✅ Chain B (Hardhat) 运行中 (PID: $PID_CHAIN_B)"
 else
-    echo "   ❌ Chain B 启动失败，请查看日志: chaindata/logs/chain-b.log"
+  echo "   ❌ Chain B 启动失败，请查看日志: chaindata/logs/chain-b.log"
 fi
 
 echo ""
