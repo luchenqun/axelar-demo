@@ -47,9 +47,6 @@ if [ -z "$(ls -A $TOFND_HOME 2> /dev/null)" ]; then
 
   # 删除导出文件，避免 tofnd 再次启动报错 "File chaindata/tofnd/export already exists"
   rm -f $TOFND_HOME/export
-
-  # 等待初始化完成
-  sleep 1
 fi
 
 echo "   正在后台启动 Tofnd..."
@@ -158,10 +155,6 @@ nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 
 PID_AXELAR=$!
 echo "   Axelard PID: $PID_AXELAR"
 
-# Relayer 已经在 Genesis 中资金充足，无需转账
-# 等待节点启动
-sleep 2
-
 # ---------------------------
 # 3. 启动 EVM 节点 (Hardhat)
 # ---------------------------
@@ -179,13 +172,7 @@ nohup npx hardhat node --config configs/chain-b.config.cjs --port 7545 > chainda
 PID_CHAIN_B=$!
 echo "   Chain B PID: $PID_CHAIN_B"
 
-# ---------------------------
-# 2.5 启动 Vald (Validator Daemon)
-# ---------------------------
-# 等待 Hardhat 启动
-echo "   等待 Hardhat 节点就绪 (5s)..."
-sleep 2
-
+# 启动 Vald
 echo "   启动 Vald (Validator Daemon)..."
 # 获取验证者地址
 VALIDATOR_ADDR=$(./bin/axelard keys show validator --home $AXELAR_HOME --bech val -a --keyring-backend test)
@@ -204,12 +191,8 @@ echo "   Vald PID: $PID_VALD"
 # ---------------------------
 # 4. 检查状态
 # ---------------------------
-
-# ---------------------------
-# 4. 检查状态
-# ---------------------------
 echo "⏳ 等待服务启动..."
-sleep 2
+sleep 1
 
 echo "📊 服务状态检查:"
 

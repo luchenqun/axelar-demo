@@ -29,7 +29,7 @@ pkill -f "bin/tofnd"
 pkill -f "vald-start"
 
 # 等待进程退出
-sleep 2
+sleep 1
 
 echo ""
 echo "✅ 所有服务已停止！"
