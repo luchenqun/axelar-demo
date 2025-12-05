@@ -37,6 +37,37 @@ echo "--------------------------------"
 mkdir -p chaindata/tofnd chaindata/axelar chaindata/logs
 
 # ---------------------------
+# 3. 启动 EVM 节点 (Hardhat)
+# ---------------------------
+echo "3️⃣  启动 Hardhat 节点..."
+
+# Ethereum
+echo "   正在启动 Ethereum (Port 8545)..."
+nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/ethereum.log 2>&1 &
+PID_ETHEREUM=$!
+echo "   Ethereum PID: $PID_ETHEREUM"
+
+# Polygon
+echo "   正在启动 Polygon (Port 8546)..."
+nohup npx hardhat node --config configs/chain-b.config.cjs --port 8546 > chaindata/logs/polygon.log 2>&1 &
+PID_POLYGON=$!
+echo "   Polygon PID: $PID_POLYGON"
+
+echo "   等待 Hardhat 节点就绪..."
+sleep 3
+
+# ---------------------------
+# 部署 Gateway 合约
+# ---------------------------
+echo "🔗 部署 Gateway 合约..."
+if npx ts-node src/deploy-gateway.ts > chaindata/logs/gateway-deploy.log 2>&1; then
+  echo "   ✅ Gateway 合约部署成功"
+else
+  echo "   ⚠️  Gateway 合约部署失败，请查看日志: chaindata/logs/gateway-deploy.log"
+  exit 1
+fi
+
+# ---------------------------
 # 1. 启动 Tofnd
 # ---------------------------
 echo "1️⃣  启动 Tofnd..."
@@ -227,6 +258,28 @@ fi
 jq '.app_state.nexus.chains += [{"name": "Polygon", "native_asset_deprecated": "", "supports_foreign_assets": true, "key_type": "KEY_TYPE_MULTISIG", "module": "evm"}]' "$GENESIS_FILE" > "$GENESIS_FILE.tmp" && mv "$GENESIS_FILE.tmp" "$GENESIS_FILE"
 echo "   Added Polygon to nexus.chains"
 
+# 更新 genesis.json 中的 Gateway 地址
+echo "Updating gateway addresses in genesis.json..."
+GATEWAY_ADDRS_FILE="chaindata/gateway-addresses.json"
+if [ -f "$GATEWAY_ADDRS_FILE" ]; then
+  ETH_GATEWAY=$(jq -r '.Ethereum' "$GATEWAY_ADDRS_FILE" 2>/dev/null)
+  POLYGON_GATEWAY=$(jq -r '.Polygon' "$GATEWAY_ADDRS_FILE" 2>/dev/null)
+  
+  if [ -n "$ETH_GATEWAY" ] && [ "$ETH_GATEWAY" != "null" ]; then
+    echo "   更新 Ethereum Gateway 地址: $ETH_GATEWAY"
+    ETH_BYTES=$(node -e "const addr='$ETH_GATEWAY'; console.log(JSON.stringify(addr.slice(2).match(/.{1,2}/g).map(b=>parseInt(b,16))))")
+    jq --argjson bytes "$ETH_BYTES" '(.app_state.evm.chains[] | select(.params.chain == "Ethereum") | .gateway.address) = $bytes' "$GENESIS_FILE" > "$GENESIS_FILE.tmp" && mv "$GENESIS_FILE.tmp" "$GENESIS_FILE"
+  fi
+  
+  if [ -n "$POLYGON_GATEWAY" ] && [ "$POLYGON_GATEWAY" != "null" ]; then
+    echo "   更新 Polygon Gateway 地址: $POLYGON_GATEWAY"
+    POLYGON_BYTES=$(node -e "const addr='$POLYGON_GATEWAY'; console.log(JSON.stringify(addr.slice(2).match(/.{1,2}/g).map(b=>parseInt(b,16))))")
+    jq --argjson bytes "$POLYGON_BYTES" '(.app_state.evm.chains[] | select(.params.chain == "Polygon") | .gateway.address) = $bytes' "$GENESIS_FILE" > "$GENESIS_FILE.tmp" && mv "$GENESIS_FILE.tmp" "$GENESIS_FILE"
+  fi
+else
+  echo "   ⚠️  Gateway 地址文件不存在，跳过更新"
+fi
+
 # 验证 genesis.json 文件
 echo "Validating genesis.json with axelard..."
 
@@ -240,57 +293,6 @@ echo "   Genesis file validation passed"
 nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 &
 PID_AXELAR=$!
 echo "   Axelard PID: $PID_AXELAR"
-
-# ---------------------------
-# 激活 EVM 链
-# ---------------------------
-echo "   等待节点就绪并激活链..."
-for i in {1..30}; do
-  if ./bin/axelard status --node tcp://127.0.0.1:26657 --home $AXELAR_HOME > /dev/null 2>&1; then
-    BLOCK_HEIGHT=$(./bin/axelard status --node tcp://127.0.0.1:26657 --home $AXELAR_HOME 2>/dev/null | jq -r '.sync_info.latest_block_height' 2>/dev/null)
-    if [ "$BLOCK_HEIGHT" != "0" ] && [ "$BLOCK_HEIGHT" != "null" ] && [ -n "$BLOCK_HEIGHT" ]; then
-      echo "   ✅ 节点已就绪 (区块高度: $BLOCK_HEIGHT)，激活链..."
-      for chain in Ethereum Polygon; do
-        echo -n "   激活 $chain..."
-        OUTPUT=$(./bin/axelard tx nexus activate-chain $chain --from validator --chain-id $CHAIN_ID \
-          --keyring-backend test --home $AXELAR_HOME --gas 100000 --gas-adjustment 1.4 \
-          --gas-prices 0.007uaxl --yes --node tcp://127.0.0.1:26657 2>&1)
-        CODE=$(echo "$OUTPUT" | jq -r '.code' 2>/dev/null || echo "")
-        if [ "$CODE" = "0" ] || echo "$OUTPUT" | grep -q "code: 0"; then
-          echo " ✅ 成功"
-        elif echo "$OUTPUT" | grep -qi "already registered\|already activated"; then
-          echo " ℹ️  已激活"
-        else
-          echo " ⚠️  失败"
-          echo "$OUTPUT"
-        fi
-        sleep 2
-      done
-      break
-    fi
-  fi
-  [ $((i % 5)) -eq 0 ] && echo "   等待中... ($i/30)"
-  sleep 1
-done
-
-# ---------------------------
-# 3. 启动 EVM 节点 (Hardhat)
-# ---------------------------
-echo "3️⃣  启动 Hardhat 节点..."
-
-# Ethereum
-echo "   正在启动 Ethereum (Port 8545)..."
-nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/ethereum.log 2>&1 &
-PID_ETHEREUM=$!
-echo "   Ethereum PID: $PID_ETHEREUM"
-
-# Polygon
-echo "   正在启动 Polygon (Port 8546)..."
-nohup npx hardhat node --config configs/chain-b.config.cjs --port 8546 > chaindata/logs/polygon.log 2>&1 &
-PID_POLYGON=$!
-echo "   Polygon PID: $PID_POLYGON"
-
-sleep 1
 
 # 启动 Vald
 echo "   启动 Vald (Validator Daemon)..."
