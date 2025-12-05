@@ -17,16 +17,18 @@ async function main(): Promise<void> {
   const providerB = new ethers.providers.JsonRpcProvider(RPC_URL_B);
   const walletA = new ethers.Wallet(PRIVATE_KEY, providerA);
   const walletB = new ethers.Wallet(PRIVATE_KEY, providerB);
+  const chainEthereum = 'Ethereum';
+  const chainPolygon = 'Polygon';
 
   // 2. 初始化网络
   console.log('\n🔗 初始化网络环境中...');
   const chainA = await setupNetwork(RPC_URL_A, {
-    name: 'Ethereum',
+    name: chainEthereum,
     ownerKey: walletA,
   });
   console.log('======================');
   const chainB = await setupNetwork(RPC_URL_B, {
-    name: 'Polygon',
+    name: chainPolygon,
     ownerKey: walletB,
   });
 
@@ -67,7 +69,7 @@ async function main(): Promise<void> {
   const approveTx1 = await usdcA.connect(walletA).approve(chainA.gateway.address, amountToB, { gasLimit: 10000000 });
   await approveTx1.wait();
 
-  const tx1 = await chainA.gateway.connect(walletA).sendToken('ChainB', walletB.address, symbol, amountToB, { gasLimit: 10000000 });
+  const tx1 = await chainA.gateway.connect(walletA).sendToken(chainPolygon, walletB.address, symbol, amountToB, { gasLimit: 10000000 });
   await tx1.wait();
   console.log('   ✅ [Chain A] sendToken called');
   console.log('   📡 Relaying...');
@@ -85,7 +87,7 @@ async function main(): Promise<void> {
   const approveTx2 = await usdcB.connect(walletB).approve(chainB.gateway.address, amountToA, { gasLimit: 10000000 });
   await approveTx2.wait();
 
-  const tx2 = await chainB.gateway.connect(walletB).sendToken('ChainA', walletA.address, symbol, amountToA, { gasLimit: 10000000 });
+  const tx2 = await chainB.gateway.connect(walletB).sendToken(chainEthereum, walletA.address, symbol, amountToA, { gasLimit: 10000000 });
   await tx2.wait();
   console.log('   ✅ [Chain B] sendToken called');
   console.log('   📡 Relaying...');

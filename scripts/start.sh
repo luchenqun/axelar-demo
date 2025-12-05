@@ -254,6 +254,8 @@ nohup npx hardhat node --config configs/chain-b.config.cjs --port 7545 > chainda
 PID_CHAIN_B=$!
 echo "   Chain B PID: $PID_CHAIN_B"
 
+sleep 1
+
 # 启动 Vald
 echo "   启动 Vald (Validator Daemon)..."
 # 获取验证者地址
