@@ -223,6 +223,10 @@ else
   echo "   Warning: $CHAINS_CONFIG not found, skipping evm.chains update"
 fi
 
+# 在 nexus.chains 中添加 Polygon
+jq '.app_state.nexus.chains += [{"name": "Polygon", "native_asset_deprecated": "", "supports_foreign_assets": true, "key_type": "KEY_TYPE_MULTISIG", "module": "evm"}]' "$GENESIS_FILE" > "$GENESIS_FILE.tmp" && mv "$GENESIS_FILE.tmp" "$GENESIS_FILE"
+echo "   Added Polygon to nexus.chains"
+
 # 验证 genesis.json 文件
 echo "Validating genesis.json with axelard..."
 
