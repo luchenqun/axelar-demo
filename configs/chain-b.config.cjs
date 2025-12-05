@@ -2,7 +2,7 @@
 module.exports = {
   networks: {
     hardhat: {
-      chainId: 2501, // Chain B ID
+      chainId: 137,
       hardfork: 'shanghai', // Use a stable hardfork compatible with axelar contracts
       accounts: [
         {

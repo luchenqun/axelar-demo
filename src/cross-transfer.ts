@@ -21,12 +21,12 @@ async function main(): Promise<void> {
   // 2. 初始化网络
   console.log('\n🔗 初始化网络环境中...');
   const chainA = await setupNetwork(RPC_URL_A, {
-    name: 'ChainA',
+    name: 'Ethereum',
     ownerKey: walletA,
   });
   console.log('======================');
   const chainB = await setupNetwork(RPC_URL_B, {
-    name: 'ChainB',
+    name: 'Polygon',
     ownerKey: walletB,
   });
 
@@ -71,6 +71,7 @@ async function main(): Promise<void> {
   await tx1.wait();
   console.log('   ✅ [Chain A] sendToken called');
   console.log('   📡 Relaying...');
+
   await relay();
 
   await printBalances('Chain A -> Chain B 完成后');

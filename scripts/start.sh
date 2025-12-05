@@ -23,6 +23,13 @@ else
   exit 1
 fi
 
+# 检查 jq 命令是否可用（用于修改 JSON 文件）
+if ! command -v jq &> /dev/null; then
+  echo "❌ 错误: 未找到 jq 命令"
+  echo "   请安装 jq: brew install jq (macOS) 或 apt-get install jq (Linux)"
+  exit 1
+fi
+
 echo "🚀 启动 Axelar 本地开发环境"
 echo "--------------------------------"
 
@@ -140,6 +147,58 @@ if ! ./bin/axelard keys show relayer --home $AXELAR_HOME --keyring-backend test 
   ./bin/axelard keys add relayer --home $AXELAR_HOME --keyring-backend test > /dev/null 2>&1
 fi
 
+# ---------------------------
+# 设置 Validator 权限 (ROLE_ACCESS_CONTROL)
+# ---------------------------
+echo "   🔧 检查并设置 Validator 权限..."
+VALIDATOR_ADDRESS=$(./bin/axelard keys show validator --address --home $AXELAR_HOME --keyring-backend test 2>/dev/null || echo "")
+
+if [ -n "$VALIDATOR_ADDRESS" ]; then
+  GENESIS_FILE="$AXELAR_HOME/config/genesis.json"
+  
+  # 检查是否已经设置了 ROLE_ACCESS_CONTROL 权限
+  HAS_PERMISSION=false
+  if [ -f "$GENESIS_FILE" ]; then
+    # 检查 validator 地址是否在 gov_accounts 中，并且角色是 ROLE_ACCESS_CONTROL
+    if jq -e ".app_state.permission.gov_accounts[] | select(.address == \"$VALIDATOR_ADDRESS\" and (.role == \"ROLE_ACCESS_CONTROL\" or .role == 3))" "$GENESIS_FILE" > /dev/null 2>&1; then
+      HAS_PERMISSION=true
+    fi
+  fi
+  
+  if [ "$HAS_PERMISSION" = false ]; then
+    echo "      为 Validator 添加 ROLE_ACCESS_CONTROL 权限..."
+    
+    # 备份 genesis 文件
+    if [ -f "$GENESIS_FILE" ]; then
+      cp "$GENESIS_FILE" "${GENESIS_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+    
+    # 检查是否已存在该地址（但角色不同）
+    if jq -e ".app_state.permission.gov_accounts[] | select(.address == \"$VALIDATOR_ADDRESS\")" "$GENESIS_FILE" > /dev/null 2>&1; then
+      # 更新现有条目的角色
+      jq --arg addr "$VALIDATOR_ADDRESS" \
+         '.app_state.permission.gov_accounts = (.app_state.permission.gov_accounts | map(if .address == $addr then .role = "ROLE_ACCESS_CONTROL" else . end))' \
+         "$GENESIS_FILE" > "${GENESIS_FILE}.tmp" && mv "${GENESIS_FILE}.tmp" "$GENESIS_FILE"
+    else
+      # 添加新条目
+      jq --arg addr "$VALIDATOR_ADDRESS" \
+         '.app_state.permission.gov_accounts += [{"address": $addr, "role": "ROLE_ACCESS_CONTROL"}]' \
+         "$GENESIS_FILE" > "${GENESIS_FILE}.tmp" && mv "${GENESIS_FILE}.tmp" "$GENESIS_FILE"
+    fi
+    
+    # 验证修改是否成功
+    if jq -e ".app_state.permission.gov_accounts[] | select(.address == \"$VALIDATOR_ADDRESS\" and (.role == \"ROLE_ACCESS_CONTROL\" or .role == 3))" "$GENESIS_FILE" > /dev/null 2>&1; then
+      echo "      ✅ Validator 权限设置成功"
+    else
+      echo "      ⚠️  警告: 权限设置可能失败，请手动检查 genesis.json"
+    fi
+  else
+    echo "      ✅ Validator 已有 ROLE_ACCESS_CONTROL 权限"
+  fi
+else
+  echo "      ⚠️  无法获取 Validator 地址，跳过权限设置"
+fi
+
 echo "   正在后台启动 Axelard..."
 # 启动节点
 # 设置 bin 目录为库加载路径 (针对 Mac libwasmvm.dylib 或 Linux libwasmvm.so)
@@ -150,6 +209,29 @@ if [ "$(uname)" == "Darwin" ]; then
 else
   export LD_LIBRARY_PATH="$BIN_ABS_PATH:$LD_LIBRARY_PATH"
 fi
+
+# 替换 genesis.json 中的 evm.chains 配置
+echo "Updating evm.chains in genesis.json..."
+GENESIS_FILE="$AXELAR_HOME/config/genesis.json"
+CHAINS_CONFIG="configs/chains.json"
+
+if [ -f "$CHAINS_CONFIG" ]; then
+  # 使用 jq 替换 app_state.evm.chains 的内容
+  jq --argjson chains "$(cat $CHAINS_CONFIG)" '.app_state.evm.chains = $chains' "$GENESIS_FILE" > "$GENESIS_FILE.tmp" && mv "$GENESIS_FILE.tmp" "$GENESIS_FILE"
+  echo "   Updated evm.chains with content from $CHAINS_CONFIG"
+else
+  echo "   Warning: $CHAINS_CONFIG not found, skipping evm.chains update"
+fi
+
+# 验证 genesis.json 文件
+echo "Validating genesis.json with axelard..."
+
+if ! ./bin/axelard genesis validate --home $AXELAR_HOME; then
+  echo "   ERROR: Genesis validation failed"
+  exit 1
+fi
+
+echo "   Genesis file validation passed"
 
 nohup ./bin/axelard start --home $AXELAR_HOME > chaindata/logs/axelard.log 2>&1 &
 PID_AXELAR=$!
