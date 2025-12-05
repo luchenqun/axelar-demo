@@ -1,5 +1,9 @@
 import { setupNetwork, relay } from '@axelar-network/axelar-local-dev';
 import { ethers } from 'ethers';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ================= 配置区域 =================
 const RPC_URL_A = 'http://localhost:8545'; // Ethereum
@@ -15,6 +19,21 @@ async function sleep(timeout: number): Promise<void> {
       resolve();
     }, timeout);
   });
+}
+
+async function registerGateway(chain: string, gatewayAddress: string): Promise<void> {
+  const command = `./bin/axelard tx evm set-gateway ${chain} ${gatewayAddress} --from validator -y --home ./chaindata/axelar --keyring-backend test`;
+  console.log(`📝 注册 Gateway 地址: ${chain} -> ${gatewayAddress}`);
+  try {
+    const { stdout, stderr } = await execAsync(command);
+    if (stderr) {
+      console.error(`   ⚠️  stderr: ${stderr}`);
+    }
+    console.log(`   ✅ Gateway 注册成功`);
+  } catch (error) {
+    console.error(`   ❌ Gateway 注册失败:`, error);
+    throw error;
+  }
 }
 
 async function main(): Promise<void> {
@@ -39,6 +58,11 @@ async function main(): Promise<void> {
     name: chainPolygon,
     ownerKey: walletB,
   });
+
+  // 2.1 注册 Gateway 地址到 Axelar Core
+  console.log('\n🔗 注册 Gateway 地址到 Axelar Core...');
+  await registerGateway(chainEthereum, chainA.gateway.address);
+  await registerGateway(chainPolygon, chainB.gateway.address);
 
   // 3. 部署代币
   const name = 'USD Coin';

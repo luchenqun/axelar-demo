@@ -238,6 +238,38 @@ PID_AXELAR=$!
 echo "   Axelard PID: $PID_AXELAR"
 
 # ---------------------------
+# 激活 EVM 链
+# ---------------------------
+echo "   等待节点就绪并激活链..."
+for i in {1..30}; do
+  if ./bin/axelard status --node tcp://127.0.0.1:26657 --home $AXELAR_HOME > /dev/null 2>&1; then
+    BLOCK_HEIGHT=$(./bin/axelard status --node tcp://127.0.0.1:26657 --home $AXELAR_HOME 2>/dev/null | jq -r '.sync_info.latest_block_height' 2>/dev/null)
+    if [ "$BLOCK_HEIGHT" != "0" ] && [ "$BLOCK_HEIGHT" != "null" ] && [ -n "$BLOCK_HEIGHT" ]; then
+      echo "   ✅ 节点已就绪 (区块高度: $BLOCK_HEIGHT)，激活链..."
+      for chain in Ethereum Polygon; do
+        echo -n "   激活 $chain..."
+        OUTPUT=$(./bin/axelard tx nexus activate-chain $chain --from validator --chain-id $CHAIN_ID \
+          --keyring-backend test --home $AXELAR_HOME --gas 100000 --gas-adjustment 1.4 \
+          --gas-prices 0.007uaxl --yes --node tcp://127.0.0.1:26657 2>&1)
+        CODE=$(echo "$OUTPUT" | jq -r '.code' 2>/dev/null || echo "")
+        if [ "$CODE" = "0" ] || echo "$OUTPUT" | grep -q "code: 0"; then
+          echo " ✅ 成功"
+        elif echo "$OUTPUT" | grep -qi "already registered\|already activated"; then
+          echo " ℹ️  已激活"
+        else
+          echo " ⚠️  失败"
+          echo "$OUTPUT"
+        fi
+        sleep 2
+      done
+      break
+    fi
+  fi
+  [ $((i % 5)) -eq 0 ] && echo "   等待中... ($i/30)"
+  sleep 1
+done
+
+# ---------------------------
 # 3. 启动 EVM 节点 (Hardhat)
 # ---------------------------
 echo "3️⃣  启动 Hardhat 节点..."
