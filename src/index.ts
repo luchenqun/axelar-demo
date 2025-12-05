@@ -3,10 +3,10 @@ import { ethers } from 'ethers';
 
 // ================= 配置区域 =================
 // 假设你本地运行了两个 EVM 节点
-// 节点 A: 端口 8545 (例如: ganache-cli -p 8545)
-// 节点 B: 端口 8546 (例如: ganache-cli -p 8546)
-const RPC_URL_A = 'http://localhost:8545';
-const RPC_URL_B = 'http://localhost:7545'; // Chain B 映射到 7545
+// Ethereum: 端口 8545
+// Polygon: 端口 8546
+const RPC_URL_A = 'http://localhost:8545'; // Ethereum
+const RPC_URL_B = 'http://localhost:8546'; // Polygon
 
 // 这里的私钥需要是在两个链上都有余额的账户
 // 为了演示方便，这里使用 Ganache 默认的第一个账户私钥
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   const amount = 100 * 1e6; // 100 USDC (6 decimals)
   const amountHuman = 100;
 
-  console.log(`\n💸 准备从 Chain A 跨链发送 ${amountHuman} USDC 到 Chain B...`);
+  console.log(`\n💸 准备从 Ethereum 跨链发送 ${amountHuman} USDC 到 Polygon...`);
 
   // 4.1 授权 Gateway
   console.log('   1️⃣  授权 Gateway 扣款...');
@@ -107,13 +107,13 @@ async function main(): Promise<void> {
   const balB = await tokenB.balanceOf(walletB.address);
 
   console.log('\n📊 最终余额状态:');
-  console.log(`   Chain A (Sender):   ${ethers.utils.formatUnits(balA, 6)} aUSDC`);
-  console.log(`   Chain B (Receiver): ${ethers.utils.formatUnits(balB, 6)} aUSDC`);
+  console.log(`   Ethereum (Sender):   ${ethers.utils.formatUnits(balA, 6)} aUSDC`);
+  console.log(`   Polygon (Receiver): ${ethers.utils.formatUnits(balB, 6)} aUSDC`);
 
   if (balB.gt(balB_before)) {
-    console.log(`\n🎉 成功！Chain B 收到了跨链资产！`);
+    console.log(`\n🎉 成功！Polygon 收到了跨链资产！`);
   } else {
-    console.log(`\n⚠️  Chain B 余额未增加，请检查日志。`);
+    console.log(`\n⚠️  Polygon 余额未增加，请检查日志。`);
   }
 }
 

@@ -2,8 +2,8 @@ import { setupNetwork, relay } from '@axelar-network/axelar-local-dev';
 import { ethers } from 'ethers';
 
 // ================= 配置区域 =================
-const RPC_URL_A = 'http://localhost:8545';
-const RPC_URL_B = 'http://localhost:7545';
+const RPC_URL_A = 'http://localhost:8545'; // Ethereum
+const RPC_URL_B = 'http://localhost:8546'; // Polygon
 
 // 使用默认的 Hardhat/Ganache 账户私钥 (Account #0)
 const PRIVATE_KEY = '0xf78a036930ce63791ea6ea20072986d8c3f16a6811f6a2583b0787c45086f769';
@@ -54,42 +54,42 @@ async function main(): Promise<void> {
     const balA = await usdcA.balanceOf(walletA.address);
     const balB = await usdcB.balanceOf(walletB.address);
     console.log(`\n📊 [${label}] 余额状态:`);
-    console.log(`   Chain A (Wallet): ${ethers.utils.formatUnits(balA, 6)} ${symbol}`);
-    console.log(`   Chain B (Wallet): ${ethers.utils.formatUnits(balB, 6)} ${symbol}`);
+    console.log(`   Ethereum (Wallet): ${ethers.utils.formatUnits(balA, 6)} ${symbol}`);
+    console.log(`   Polygon (Wallet): ${ethers.utils.formatUnits(balB, 6)} ${symbol}`);
   };
 
   await printBalances('初始状态');
 
   // ==================================================================
-  // 第一阶段: Chain A -> Chain B
+  // 第一阶段: Ethereum -> Polygon
   // ==================================================================
   const amountToB = 1000 * 1e6; // 1000 USDC
-  console.log(`\n👉 第一阶段: 跨链发送 ${amountToB / 1e6} ${symbol} 从 Chain A 到 Chain B`);
+  console.log(`\n👉 第一阶段: 跨链发送 ${amountToB / 1e6} ${symbol} 从 Ethereum 到 Polygon`);
 
   const approveTx1 = await usdcA.connect(walletA).approve(chainA.gateway.address, amountToB, { gasLimit: 10000000 });
   await approveTx1.wait();
 
   const tx1 = await chainA.gateway.connect(walletA).sendToken(chainPolygon, walletB.address, symbol, amountToB, { gasLimit: 10000000 });
   await tx1.wait();
-  console.log('   ✅ [Chain A] sendToken called');
+  console.log('   ✅ [Ethereum] sendToken called');
   console.log('   📡 Relaying...');
 
   await relay();
 
-  await printBalances('Chain A -> Chain B 完成后');
+  await printBalances('Ethereum -> Polygon 完成后');
 
   // ==================================================================
-  // 第二阶段: Chain B -> Chain A (回流)
+  // 第二阶段: Polygon -> Ethereum (回流)
   // ==================================================================
   const amountToA = 500 * 1e6; // 500 USDC
-  console.log(`\n👈 第二阶段: 跨链回传 ${amountToA / 1e6} ${symbol} 从 Chain B 到 Chain A`);
+  console.log(`\n👈 第二阶段: 跨链回传 ${amountToA / 1e6} ${symbol} 从 Polygon 到 Ethereum`);
 
   const approveTx2 = await usdcB.connect(walletB).approve(chainB.gateway.address, amountToA, { gasLimit: 10000000 });
   await approveTx2.wait();
 
   const tx2 = await chainB.gateway.connect(walletB).sendToken(chainEthereum, walletA.address, symbol, amountToA, { gasLimit: 10000000 });
   await tx2.wait();
-  console.log('   ✅ [Chain B] sendToken called');
+  console.log('   ✅ [Polygon] sendToken called');
   console.log('   📡 Relaying...');
   await relay();
 

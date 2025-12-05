@@ -242,22 +242,41 @@ echo "   Axelard PID: $PID_AXELAR"
 # ---------------------------
 echo "3️⃣  启动 Hardhat 节点..."
 
-# Chain A
-echo "   正在启动 Chain A (Port 8545)..."
-nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/chain-a.log 2>&1 &
-PID_CHAIN_A=$!
-echo "   Chain A PID: $PID_CHAIN_A"
+# Ethereum
+echo "   正在启动 Ethereum (Port 8545)..."
+nohup npx hardhat node --config configs/chain-a.config.cjs --port 8545 > chaindata/logs/ethereum.log 2>&1 &
+PID_ETHEREUM=$!
+echo "   Ethereum PID: $PID_ETHEREUM"
 
-# Chain B
-echo "   正在启动 Chain B (Port 7545)..."
-nohup npx hardhat node --config configs/chain-b.config.cjs --port 7545 > chaindata/logs/chain-b.log 2>&1 &
-PID_CHAIN_B=$!
-echo "   Chain B PID: $PID_CHAIN_B"
+# Polygon
+echo "   正在启动 Polygon (Port 8546)..."
+nohup npx hardhat node --config configs/chain-b.config.cjs --port 8546 > chaindata/logs/polygon.log 2>&1 &
+PID_POLYGON=$!
+echo "   Polygon PID: $PID_POLYGON"
 
 sleep 1
 
 # 启动 Vald
 echo "   启动 Vald (Validator Daemon)..."
+
+# 添加 EVM 链配置到 config.toml
+cat >> $AXELAR_HOME/config/config.toml << 'EOF'
+
+###############################################################################
+###                     Axelar Bridge EVM Configuration                     ###
+###############################################################################
+
+[[axelar_bridge_evm]]
+name = "Ethereum"
+rpc_addr = "http://localhost:8545"
+start-with-bridge = true
+
+[[axelar_bridge_evm]]
+name = "Polygon"
+rpc_addr = "http://localhost:8546"
+start-with-bridge = true
+EOF
+
 # 获取验证者地址
 VALIDATOR_ADDR=$(./bin/axelard keys show validator --home $AXELAR_HOME --bech val -a --keyring-backend test)
 
@@ -296,16 +315,16 @@ else
 fi
 
 # 检查 Hardhat 节点
-if ps -p $PID_CHAIN_A > /dev/null; then
-  echo "   ✅ Chain A (Hardhat) 运行中 (PID: $PID_CHAIN_A)"
+if ps -p $PID_ETHEREUM > /dev/null; then
+  echo "   ✅ Ethereum (Hardhat) 运行中 (PID: $PID_ETHEREUM)"
 else
-  echo "   ❌ Chain A 启动失败，请查看日志: chaindata/logs/chain-a.log"
+  echo "   ❌ Ethereum 启动失败，请查看日志: chaindata/logs/ethereum.log"
 fi
 
-if ps -p $PID_CHAIN_B > /dev/null; then
-  echo "   ✅ Chain B (Hardhat) 运行中 (PID: $PID_CHAIN_B)"
+if ps -p $PID_POLYGON > /dev/null; then
+  echo "   ✅ Polygon (Hardhat) 运行中 (PID: $PID_POLYGON)"
 else
-  echo "   ❌ Chain B 启动失败，请查看日志: chaindata/logs/chain-b.log"
+  echo "   ❌ Polygon 启动失败，请查看日志: chaindata/logs/polygon.log"
 fi
 
 echo ""
