@@ -9,6 +9,14 @@ const RPC_URL_B = 'http://localhost:8546'; // Polygon
 const PRIVATE_KEY = '0xf78a036930ce63791ea6ea20072986d8c3f16a6811f6a2583b0787c45086f769';
 // ===========================================
 
+async function sleep(timeout: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, timeout);
+  });
+}
+
 async function main(): Promise<void> {
   console.log('🚀 Axelar 双向跨链演示启动 (A -> B -> A)...');
 
@@ -71,30 +79,32 @@ async function main(): Promise<void> {
 
   const tx1 = await chainA.gateway.connect(walletA).sendToken(chainPolygon, walletB.address, symbol, amountToB, { gasLimit: 10000000 });
   await tx1.wait();
-  console.log('   ✅ [Ethereum] sendToken called');
+  console.log('   ✅ [Ethereum] sendToken called', tx1.hash);
   console.log('   📡 Relaying...');
 
-  await relay();
+  // await relay();
+
+  await sleep(2000);
 
   await printBalances('Ethereum -> Polygon 完成后');
 
-  // ==================================================================
-  // 第二阶段: Polygon -> Ethereum (回流)
-  // ==================================================================
-  const amountToA = 500 * 1e6; // 500 USDC
-  console.log(`\n👈 第二阶段: 跨链回传 ${amountToA / 1e6} ${symbol} 从 Polygon 到 Ethereum`);
+  // // ==================================================================
+  // // 第二阶段: Polygon -> Ethereum (回流)
+  // // ==================================================================
+  // const amountToA = 500 * 1e6; // 500 USDC
+  // console.log(`\n👈 第二阶段: 跨链回传 ${amountToA / 1e6} ${symbol} 从 Polygon 到 Ethereum`);
 
-  const approveTx2 = await usdcB.connect(walletB).approve(chainB.gateway.address, amountToA, { gasLimit: 10000000 });
-  await approveTx2.wait();
+  // const approveTx2 = await usdcB.connect(walletB).approve(chainB.gateway.address, amountToA, { gasLimit: 10000000 });
+  // await approveTx2.wait();
 
-  const tx2 = await chainB.gateway.connect(walletB).sendToken(chainEthereum, walletA.address, symbol, amountToA, { gasLimit: 10000000 });
-  await tx2.wait();
-  console.log('   ✅ [Polygon] sendToken called');
-  console.log('   📡 Relaying...');
-  await relay();
+  // const tx2 = await chainB.gateway.connect(walletB).sendToken(chainEthereum, walletA.address, symbol, amountToA, { gasLimit: 10000000 });
+  // await tx2.wait();
+  // console.log('   ✅ [Polygon] sendToken called');
+  // console.log('   📡 Relaying...');
+  // await relay();
 
-  await printBalances('最终状态');
-  console.log('\n🎉 演示结束！');
+  // await printBalances('最终状态');
+  // console.log('\n🎉 演示结束！');
 }
 
 main().catch((err) => {
